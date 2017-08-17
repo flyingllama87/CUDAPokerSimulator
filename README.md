@@ -1,0 +1,2 @@
+# CUDAPokerSimulator
+CUDA poker simulator
