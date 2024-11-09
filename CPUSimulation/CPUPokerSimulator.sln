@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CPUPokerSimulator", "CPUPokerSimulator.vcxproj", "{50D66667-6A6A-47ED-88BA-201DB229C6EC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Debug|x64.ActiveCfg = Debug|x64
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Debug|x64.Build.0 = Debug|x64
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Debug|x86.ActiveCfg = Debug|Win32
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Debug|x86.Build.0 = Debug|Win32
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Release|x64.ActiveCfg = Release|x64
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Release|x64.Build.0 = Release|x64
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Release|x86.ActiveCfg = Release|Win32
+		{50D66667-6A6A-47ED-88BA-201DB229C6EC}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8A9FFDA3-16D4-4AF4-8E4C-F921922ED613}
+	EndGlobalSection
+EndGlobal

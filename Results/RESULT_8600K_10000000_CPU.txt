@@ -1,0 +1,53 @@
+Running simulation with 24 threads and 9 players. Target: 10000000 games. Elapsed time (seconds): 23.2167
+Games per second: 429093
+
+**** RESULTS ****
+
+Player 0 has won 1292332 the times (11.07 percent)
+Player 1 has won 1286894 the times (11.03 percent)
+Player 2 has won 1284988 the times (11.01 percent)
+Player 3 has won 1293100 the times (11.08 percent)
+Player 4 has won 1289625 the times (11.05 percent)
+Player 5 has won 1291607 the times (11.07 percent)
+Player 6 has won 1312703 the times (11.25 percent)
+Player 7 has won 1314030 the times (11.26 percent)
+Player 8 has won 1306951 the times (11.20 percent)
+
+       HighCard:  17.6627 hit 16598275 times
+        OnePair:  44.0143 hit 41361860 times
+        TwoPair:  23.5106 hit 22093750 times
+   ThreeOfAKind:   4.8331 hit 4541804 times
+       Straight:   4.1741 hit 3922507 times
+          Flush:   3.0162 hit 2834416 times
+      FullHouse:   2.5912 hit 2435019 times
+    FourOfAKind:   0.1701 hit 159868 times
+  StraightFlush:   0.0278 hit 26082 times
+
+100.00 percent | 93973581 hands played | 10441509 games played
+
+Simulation complete.
+
+**** EXECUTION TIMINGS: **** 
+
+Total execution time: 23374 ms
+Time per game: 0.00223857 ms
+Games per second: 446715
+
+**** SANITY CHECKS: ****
+
+Expected total hands played: 93973581
+Actual total hands played:   93973581
+
+Expected total games: 10441509
+Actual total winners: 11672230
+
+Sum of per-player wins: 11672230
+Total winners:          11672230
+
+Sum of hand type counts: 93973581
+Total hands played:      93973581
+
+Hands played matches expected value.
+Sum of player wins matches total winners.
+Sum of hand type counts matches total hands played.
+Press Enter to continue...

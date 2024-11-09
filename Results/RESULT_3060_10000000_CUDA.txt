@@ -1,0 +1,63 @@
+Recommended CUDA kernel "gridsize" is 28 and "blocksize" is 640.
+
+Targeting 10000000 games, calculated rounds: 558
+
+About to run CUDA poker simulation of 28 blocks, 640 threads per block for a total of 17920 threads each running 558 games. Total games: 9999360. 
+
+**** RESULTS: ****
+
+
+Total Winners 11164993
+Total Hands Played is 89994240
+
+Player 1 has won 1232411 times (11.04 percent)
+Player 2 has won 1233122 times (11.04 percent)
+Player 3 has won 1237253 times (11.08 percent)
+Player 4 has won 1238132 times (11.09 percent)
+Player 5 has won 1240875 times (11.11 percent)
+Player 6 has won 1242343 times (11.13 percent)
+Player 7 has won 1246370 times (11.16 percent)
+Player 8 has won 1249643 times (11.19 percent)
+Player 9 has won 1244844 times (11.15 percent)
+
+       HighCard:  17.6475 hit 15881723 times
+        OnePair:  44.0167 hit 39612529 times
+        TwoPair:  23.5093 hit 21157056 times
+   ThreeOfAKind:   4.8383 hit 4354195 times
+       Straight:   4.1678 hit 3750797 times
+          Flush:   3.0269 hit 2724064 times
+      FullHouse:   2.5969 hit 2337082 times
+    FourOfAKind:   0.1689 hit 152022 times
+  StraightFlush:   0.0275 hit 24772 times
+
+100.00 percent | 89994240 hands played | 9999360 games played
+
+ **** EXECUTION TIMINGS: **** 
+
+Memory allocation time: 1.79814 ms
+Kernel launch time: 1475.93 ms
+Kernel execution time: 0.046304 ms
+CPU results calculations: 0.110336 ms
+Memory deallocation time: 0 ms
+TOTAL TIME: 1477.89 ms
+
+Time per game: 0.000147798 ms
+
+**** SANITY CHECKS: ****
+
+Expected total hands played: 89994240
+Actual total hands played:   89994240
+
+Expected total games: 9999360
+Actual total winners: 11164993
+
+Sum of per-player wins: 11164993
+Total winners:          11164993
+
+Sum of hand type counts: 89994240
+Total hands played:      89994240
+
+Hands played matches expected value.
+Sum of player wins matches total winners.
+Sum of hand type counts matches total hands played.
+Press Enter to continue...

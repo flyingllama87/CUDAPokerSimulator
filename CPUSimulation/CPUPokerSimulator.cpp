@@ -1,66 +1,79 @@
-﻿
-#include <cstdlib>
+
 #include <stdio.h>
-#include <iostream>
-#include <string>
-#include <sstream>
+#include <tchar.h>
 #include <time.h>
+#include <string.h>
+#include <thread>
+#include <iostream>
+#include <time.h>
+#include <chrono>
 #include "windows.h"
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <curand_kernel.h>
+#include <condition_variable>
+#include <mutex>
+#include <atomic>
+#include <vector>
+
+std::condition_variable gCondition;
+std::mutex gMutex;
+std::atomic<bool> gKillThreads(false);
 
 using namespace std;
-
-int gGridSize = 28;
-int gBlockSize = 640;
-int gGamesPerKernel = 1000;
-
-#define START_STACK_SIZE 500
-#define SMALL_BLINDS 5
 
 #define NUM_SUITS 4
 #define NUM_CARDS 13
 #define NUM_HANDS 9
-#define NUM_PLAYERS 9
+#define MAX_NUM_PLAYERS 9
+// #define ASSERT(EXP) if (!(EXP)) { Assert* a = NULL; a->Break(); }
+#define ASSERT(EXP)
+
+struct Assert { int i; void Break() { i = 0; ++i; } };
 
 enum HandType { HighCard = 0, OnePair, TwoPair, ThreeOfAKind, Straight, Flush, FullHouse, FourOfAKind, StraightFlush, MaxHand };
 enum CardType { c2 = 0, c3, c4, c5, c6, c7, c8, c9, cT, cJ, cQ, cK, cA, MaxCard };
 enum SuitType { Club = 0, Diamond, Heart, Spade, MaxSuit };
 
 const char* pHands[NUM_HANDS] = { "HighCard", "OnePair", "TwoPair", "ThreeOfAKind", "Straight", "Flush", "FullHouse", "FourOfAKind", "StraightFlush" };
+const char pCards[NUM_CARDS] = { '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A' };
+const char pSuits[NUM_SUITS] = { 5, 4, 3, 6 };
 
-int gHands[NUM_HANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int gWinnerCount[NUM_PLAYERS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int gWinners = 0;
-int gHandsPlayed = 0;
+unsigned int gHands[NUM_HANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned int gWinnerCount[MAX_NUM_PLAYERS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned int gWinners = 0;
+unsigned int gHandsPlayed = 0;
+volatile unsigned long	gGameCounter = 0;
+// bool	gKillThreads = false;
 
 struct Card
 {
 	CardType mCard;
 	SuitType mSuit;
 
-	__device__ Card() : mCard(MaxCard), mSuit(MaxSuit)
+	Card() : mCard(MaxCard), mSuit(MaxSuit)
 	{
 	}
 
-	__device__ void set(SuitType suit, CardType card)
+	void set(SuitType suit, CardType card)
 	{
 		mSuit = suit;
 		mCard = card;
 	}
 
-	__device__ bool operator > (const Card& c) const
+	void print()
 	{
-		return mCard > c.mCard;
+		printf("%c%c ", pCards[mCard], pSuits[mSuit]);
 	}
 
-	__device__ bool operator == (const Card& c) const
+	bool operator > (const Card& c) const
 	{
-		return mCard == c.mCard;
+		return mCard > c.mCard; // Suit doesn't matter in holdem. Don't consider it.
 	}
 
-	__device__ bool operator != (const Card& c) const
+	bool operator == (const Card& c) const
+	{
+		return mCard == c.mCard; // Suit doesn't matter in holdem. Don't consider it.
+	}
+
+	bool operator != (const Card& c) const
 	{
 		return !(*this == c);
 	}
@@ -72,21 +85,24 @@ struct Player
 	Card mCards[2];
 	bool bFolded;
 
-	__device__ Player() : mStack(0), bFolded(false)
+	Player() : mStack(0), bFolded(false)
 	{
 	}
 
+	void print()
+	{
+		mCards[0].print();
+		mCards[1].print();
+	}
 };
 
 class Deck
 {
-public:
 	Card mCards[NUM_SUITS * NUM_CARDS];
-	int mNumCards = 0;
+	int mNumCards;
 
-	__device__ void reset()
+	void reset()
 	{
-
 		for (int suit = 0; suit < NUM_SUITS; ++suit)
 			for (int card = 0; card < NUM_CARDS; ++card)
 				mCards[(suit * NUM_CARDS) + card].set((SuitType)suit, (CardType)card);
@@ -96,11 +112,11 @@ public:
 
 public:
 
-	__device__ Card remove(int i)
+	Card remove(int i)
 	{
+		ASSERT(mNumCards > 0);
 
 		Card removed = mCards[i];
-
 
 		for (int j = i; j < mNumCards - 1; ++j)
 			mCards[j] = mCards[j + 1];
@@ -109,27 +125,31 @@ public:
 		return removed;
 	}
 
-	__device__ void shuffle(curandState_t* state)
+	void print()
+	{
+		for (int suit = 0; suit < NUM_SUITS; ++suit)
+			for (int card = 0; card < NUM_CARDS; ++card)
+				mCards[(suit * NUM_CARDS) + card].print();
+
+		printf("Count: %i\n", mNumCards);
+	}
+
+	void shuffle()
 	{
 		Deck tmpDeck;
-		tmpDeck.reset();
 		int i = 0;
-		int result;
 
-		while (tmpDeck.mNumCards > 0)
+		while (tmpDeck.mNumCards - 1)
 		{
-			result = curand(state);
-			if (result < 0) {
-				result = -result;
-			}
-			mCards[i] = tmpDeck.remove(result % tmpDeck.mNumCards);
+			mCards[i] = tmpDeck.remove(rand() % (tmpDeck.mNumCards));
 			++i;
 		}
 
+		mCards[i] = tmpDeck.remove(0);
 		mNumCards = NUM_SUITS * NUM_CARDS;
 	}
 
-	__device__ Deck()
+	Deck()
 	{
 		reset();
 	}
@@ -146,14 +166,19 @@ struct Hand
 	bool bFolded;
 
 	// Return 0 for equal hands, 1 if we are stronger than h, -1 if we are weaker than h.
-	__device__ int isStronger(const Hand& h) const
+	int isStronger(const Hand& h) const
 	{
+		ASSERT(mType < MaxHand);
 
 		if (mType != h.mType)
 			return mType > h.mType ? 1 : -1;
 
+		ASSERT(mKind != -1 && mType < MaxHand); // Sanity check...
+
 		if (mType == StraightFlush)
 		{
+			ASSERT(mKind == 0 && mKicker == -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind == 0 && h.mKicker == -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind])
 				return 0; // Equal straight flush (must be on the board by definition)
@@ -162,7 +187,8 @@ struct Hand
 		}
 		else if (mType == FourOfAKind)
 		{
-
+			ASSERT(mKind > -1 && mKind < 2 && mKicker > -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind > -1 && h.mKind < 2 && h.mKicker > -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // Equal 4 of a kind
 				if (mCards[mKicker] == h.mCards[h.mKicker]) // Check the kicker...
@@ -170,10 +196,17 @@ struct Hand
 				else
 					return mCards[mKicker] > h.mCards[h.mKicker] ? 1 : -1; // Best kicker wins...
 			else
-				return mCards[mKind] == h.mCards[h.mKind] ? 1 : -1; // Best for a kind wins
+				return mCards[mKind] == h.mCards[h.mKind] ? 1 : -1; // Best four of a kind wins
 		}
 		else if (mType == Flush)
 		{
+			ASSERT(mKind == 0 && mKicker == -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind == 0 && h.mKicker == -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
+
+			// Both flushes MUST be of the same suit by definition 
+			// (only one suit type can ever be held at once since it requires at least 3 board cards to pull off)
+			ASSERT(mCards[mKind].mSuit == h.mCards[h.mKind].mSuit);
+
 			// Check who has the best flush...
 			if (mCards[0] == h.mCards[0] &&
 				mCards[1] == h.mCards[1] &&
@@ -198,6 +231,9 @@ struct Hand
 		}
 		else if (mType == Straight)
 		{
+			ASSERT(mKind == 0 && mKicker == -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind == 0 && h.mKicker == -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
+
 			if (mCards[mKind] == h.mCards[h.mKind])
 				return 0; // Equal straight
 			else
@@ -205,6 +241,8 @@ struct Hand
 		}
 		else if (mType == FullHouse) // Evaluate best full house
 		{
+			ASSERT(mKind > -1 && mKind < 3 && mKicker > -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind > -1 && h.mKind < 3 && h.mKicker > -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // Do we have equal trips?
 				if (mCards[mKicker] == h.mCards[h.mKicker]) // Do we also have equal pair?
@@ -216,6 +254,8 @@ struct Hand
 		}
 		else if (mType == ThreeOfAKind) // Evaluate best 3 of a kind, consider first and second kickers
 		{
+			ASSERT(mKind > -1 && mKind < 3 && mKicker > -1 && mKicker2 > -1 && mKicker3 == -1);
+			ASSERT(h.mKind > -1 && h.mKind < 3 && h.mKicker > -1 && h.mKicker2 > -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // Equal trips, go off the kickers
 				if (mCards[mKicker] == h.mCards[h.mKicker]) // Same first kicker
@@ -230,6 +270,8 @@ struct Hand
 		}
 		else if (mType == TwoPair)
 		{
+			ASSERT(mKind > -1 && mKicker > -1 && mKicker2 > -1 && mKicker3 == -1);
+			ASSERT(h.mKind > -1 && h.mKicker > -1 && h.mKicker2 > -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // Same high pair
 				if (mCards[mKicker] == h.mCards[h.mKicker]) // Same low pair
@@ -244,6 +286,8 @@ struct Hand
 		}
 		else if (mType == OnePair)
 		{
+			ASSERT(mKind > -1 && mKicker > -1 && mKicker2 > -1 && mKicker3 > -1);
+			ASSERT(h.mKind > -1 && h.mKicker > -1 && h.mKicker2 > -1 && h.mKicker3 > -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // Same pair
 				if (mCards[mKicker] == h.mCards[h.mKicker]) // Same kicker
@@ -261,7 +305,8 @@ struct Hand
 		}
 		else if (mType == HighCard)
 		{
-
+			ASSERT(mKind == 0 && mKicker == -1 && mKicker2 == -1 && mKicker3 == -1);
+			ASSERT(h.mKind == 0 && h.mKicker == -1 && h.mKicker2 == -1 && h.mKicker3 == -1);
 
 			if (mCards[mKind] == h.mCards[h.mKind]) // equal high cards
 				if (mCards[1] == h.mCards[1]) // equal first kicker
@@ -281,16 +326,30 @@ struct Hand
 				return mCards[mKind] > h.mCards[h.mKind] ? 1 : -1; // Rely on the high card
 		}
 
+		ASSERT(false); // We should never get down to here without already have returned a result...
 		return 0;
 	}
 
+	void print()
+	{
+		for (int i = 0; i < 5; ++i)
+			mCards[i].print();
 
-	__device__ Hand() : mType(MaxHand), mKind(-1), mKicker(-1), mKicker2(-1), mKicker3(-1), bFolded(false)
+		printf(" %s\n", pHands[mType]);
+	}
+
+	Hand() : mType(MaxHand), mKind(-1), mKicker(-1), mKicker2(-1), mKicker3(-1), bFolded(false)
 	{
 	}
 
-	__device__ Hand(Card& card1, Card& card2, Card& card3, Card& card4, Card& card5) : mType(MaxHand), mKind(-1), mKicker(-1), mKicker2(-1), mKicker3(-1), bFolded(false)
+	Hand(Card& card1, Card& card2, Card& card3, Card& card4, Card& card5) : mType(MaxHand), mKind(-1), mKicker(-1), mKicker2(-1), mKicker3(-1), bFolded(false)
 	{
+		// Ensure all hands are initialized
+		ASSERT(card1.mCard < MaxCard && card1.mSuit < MaxSuit &&
+			card2.mCard < MaxCard && card2.mSuit < MaxSuit &&
+			card3.mCard < MaxCard && card3.mSuit < MaxSuit &&
+			card4.mCard < MaxCard && card4.mSuit < MaxSuit &&
+			card5.mCard < MaxCard && card5.mSuit < MaxSuit);
 
 		// Rank the cards based on value in our mCards array (this helps figure out the hand we have)
 		Card tmpCard1, tmpCard2, weakCard1, weakCard2, weakCard3, weakCard4;
@@ -570,6 +629,8 @@ struct Hand
 			return;
 		}
 
+		// 7. We have just a high card...
+		ASSERT(mType == MaxHand && mKind == -1); // Sanity check
 		mType = HighCard;
 		mKind = 0;
 	}
@@ -578,16 +639,16 @@ struct Hand
 struct TableStats
 {
 	unsigned int mHands[NUM_HANDS];
-	unsigned int mWinnerCount[NUM_PLAYERS];
+	unsigned int mWinnerCount[MAX_NUM_PLAYERS];
 	unsigned int mWinners;
 	unsigned int mHandsPlayed;
 
-	__device__ __host__ TableStats()
+	TableStats()
 	{
 		reset();
 	}
 
-	__device__ __host__ void reset()
+	void reset()
 	{
 		mWinners = 0;
 		mHandsPlayed = 0;
@@ -596,35 +657,48 @@ struct TableStats
 	}
 };
 
-
 struct Table
 {
-	Card mBoard[5];
-	Player mPlayers[NUM_PLAYERS];
 	Deck mDeck;
-	Hand mHands[NUM_HANDS];
-	int mBoardCount = 0;
-	int mNumPlayers = NUM_PLAYERS;
-	int mSmallBlind = SMALL_BLINDS;
-	int mPot = 0;
-	int mButtonPos = -1;
-	bool bWinners[NUM_PLAYERS];
+	Card mBoard[5];
+	Player mPlayers[MAX_NUM_PLAYERS];
+	Hand mHands[MAX_NUM_PLAYERS];
+	TableStats mTableStats;
+	int mBoardCount;
+	int mNumPlayers;
+	int mSmallBlind;
+	int mPot;
+	int mButtonPos;
+	bool bWinners[MAX_NUM_PLAYERS];
+	CRITICAL_SECTION mCriticalSection;
 
-	__host__ __device__ Table() {
-		// Initialize other members
-		for (int i = 0; i < mNumPlayers; ++i) {
-			mPlayers[i].mStack = START_STACK_SIZE;
+	Table(int numPlayers, int startingStackSize, int smallBlind) : mBoardCount(0), mNumPlayers(numPlayers), mSmallBlind(smallBlind), mPot(0), mButtonPos(-1)
+	{
+		ASSERT(numPlayers >= 2 && numPlayers <= MAX_NUM_PLAYERS);
+		ASSERT(startingStackSize >= 50);
+		ASSERT(smallBlind >= 1);
+
+		InitializeCriticalSectionAndSpinCount(&mCriticalSection, 0x80000400);
+
+		for (int i = 0; i < mNumPlayers; ++i)
+		{
+			mPlayers[i].mStack = startingStackSize;
 			bWinners[i] = false;
 		}
 	}
 
-	__device__ void resetWinners()
+	~Table()
+	{
+		DeleteCriticalSection(&mCriticalSection);
+	}
+
+	void resetWinners()
 	{
 		for (int i = 0; i < mNumPlayers; ++i)
 			bWinners[i] = false;
 	}
 
-	__device__ void deal(curandState_t* state)
+	void deal()
 	{
 		mBoardCount = 0;
 
@@ -654,7 +728,7 @@ struct Table
 		mPot = mSmallBlind * 3;
 
 		// shuffle and deal
-		mDeck.shuffle(state);
+		mDeck.shuffle();
 		int count = 0;
 		int i = mButtonPos;
 		int totalToDeal = mNumPlayers * 2;
@@ -672,27 +746,31 @@ struct Table
 		}
 	}
 
-	__device__ void flop()
+	void flop()
 	{
+		ASSERT(mBoardCount == 0);
+
 		Card burn = mDeck.remove(0);
 
 		for (int i = 0; i < 3; ++i)
 			mBoard[mBoardCount++] = mDeck.remove(0);
 	}
 
-	__device__ void turn()
+	void turn()
 	{
+		ASSERT(mBoardCount == 3);
 		Card burn = mDeck.remove(0);
 		mBoard[mBoardCount++] = mDeck.remove(0);
 	}
 
-	__device__ void river()
+	void river()
 	{
+		ASSERT(mBoardCount == 4);
 		Card burn = mDeck.remove(0);
 		mBoard[mBoardCount++] = mDeck.remove(0);
 	}
 
-	__device__ void evaluate(TableStats* mTableStats)
+	void evaluate()
 	{
 		// Get best hand per player then eval best hand per player against all other hands per player
 		Hand tableHand(mBoard[0], mBoard[1], mBoard[2], mBoard[3], mBoard[4]);
@@ -866,314 +944,260 @@ struct Table
 			}
 		}
 
+		EnterCriticalSection(&mCriticalSection);
 		{
 			// Accumulate statistics
 			for (int i = 0; i < mNumPlayers; ++i)
 			{
-				++(*mTableStats).mHands[mHands[i].mType];
+				++mTableStats.mHands[mHands[i].mType];
 				if (bWinners[i])
 				{
-					++(*mTableStats).mWinnerCount[i];
-					++(*mTableStats).mWinners;
+					++mTableStats.mWinnerCount[i];
+					++mTableStats.mWinners;
 				}
 			}
-			(*mTableStats).mHandsPlayed += mNumPlayers;
+			mTableStats.mHandsPlayed += mNumPlayers;
 		}
+		LeaveCriticalSection(&mCriticalSection);
+	}
+
+	void print()
+	{
+		printf("Board: ");
+
+		for (int i = 0; i < mBoardCount; ++i)
+			mBoard[i].print();
+
+		printf("\n");
+
+		for (int i = 0; i < mNumPlayers; ++i)
+		{
+			mPlayers[i].print();
+			printf(" - Player %i %s: ", i, bWinners[i] ? "(winner)" : "(loser)");
+			mHands[i].print();
+		}
+	}
+
+	void UpdateGlobalStats()
+	{
+		EnterCriticalSection(&mCriticalSection);
+		{
+			for (unsigned int i = 0; i < NUM_HANDS; i++)
+				gHands[i] += mTableStats.mHands[i];
+
+			for (unsigned int i = 0; i < MAX_NUM_PLAYERS; i++)
+				gWinnerCount[i] += mTableStats.mWinnerCount[i];
+
+			gWinners += mTableStats.mWinners;
+			gHandsPlayed += mTableStats.mHandsPlayed;
+
+			unsigned long numGames = (unsigned long)((float)mTableStats.mHandsPlayed / (float)mNumPlayers);
+			InterlockedExchangeAdd(&gGameCounter, numGames);
+
+			// Now the stats have been accumulated, reset them...
+			mTableStats.reset();
+		}
+		LeaveCriticalSection(&mCriticalSection);
+	}
+
+	static void printStats(unsigned int numPlayers)
+	{
+
+		for (unsigned int i = 0; i < numPlayers; ++i)
+			printf("Player %d has won %d the times (%.2f percent)\n", i, gWinnerCount[i], ((float)gWinnerCount[i] / (float)gWinners) * 100.f);
+
+		printf("\n");
+
+		float total = 0;
+		for (int i = 0; i < NUM_HANDS; ++i)
+		{
+			const float percentage = ((float)gHands[i] / (float)gHandsPlayed) * 100.f;
+			printf("%15s: %8.4f hit %d times\n", pHands[i], percentage, gHands[i]);
+			total += percentage;
+		}
+
+		printf("\n%.2f percent | %d hands played | %d games played\n", total, gHandsPlayed, gHandsPlayed / numPlayers);
 	}
 };
 
-// Perform reduction across all warp kernels as per nVidia Kepler reduction reference
-__inline__ __device__
-int warpReduceSum(int val) {
+static LARGE_INTEGER gTicksPerSecond;
 
-	for (int offset = warpSize / 2; offset > 0; offset /= 2)
-		val += __shfl_down_sync(0xFFFFFFFF, val, offset);
-	return val;
+void InitTimer()
+{
+	QueryPerformanceFrequency(&gTicksPerSecond);
 }
 
-// Perform Reduction across all threads in block using warm reduction as per Kepler reduction reference.
-__inline__ __device__
-int blockReduceSum(int val) {
-	__syncthreads();
-	static __shared__ int shared[32];
-	int lane = threadIdx.x % warpSize;
-	int wid = threadIdx.x / warpSize;
-	val = warpReduceSum(val);
-
-	//write reduced value to shared memory
-	if (lane == 0) shared[wid] = val;
-	__syncthreads();
-
-	//ensure we only grab a value from shared memory if that warp existed
-	val = (threadIdx.x < blockDim.x / warpSize) ? shared[lane] : int(0);
-	if (wid == 0) val = warpReduceSum(val);
-
-	return val;
+double GetTime()
+{
+	LARGE_INTEGER tick;
+	QueryPerformanceCounter(&tick);
+	return (double)tick.QuadPart / gTicksPerSecond.QuadPart;
 }
 
-__global__ void RunGames(TableStats* ts, int seed, int gamesPerKernel) {
+DWORD WINAPI SimWorker(void* obj)
+{
+	Table& t = (Table&)*(Table*)obj;
 
+	static const unsigned int workPerInterval = 300;
 
-	int tId = threadIdx.x + (blockIdx.x * blockDim.x);
-
-	Table t;
-
-	TableStats TableStats;
-	TableStats.reset();
-
-	curandState_t state;
-	curand_init(seed, tId, 0, &state);
-
-	// Run Poker Game as many times as define in GAMES_PER_KERNEL times and accumulate stats in per thread table stats array
-	for (int i = 0; i < gamesPerKernel; i++)
+	while (true)
 	{
-		// t.initialize();
-		t.deal(&state);
-		t.flop();
-		t.turn();
-		t.river();
-		t.evaluate(&TableStats);
-	}
-
-	// Perform sum of all 'table stats' and save answer to the first thread of each block.
-	TableStats.mWinners = blockReduceSum(TableStats.mWinners);
-	TableStats.mHandsPlayed = blockReduceSum(TableStats.mHandsPlayed);
-
-	for (int c = 0; c < NUM_PLAYERS; c++)
-	{
-		TableStats.mWinnerCount[c] = blockReduceSum(TableStats.mWinnerCount[c]);
-	}
-
-	for (int c = 0; c < NUM_HANDS; c++)
-	{
-		TableStats.mHands[c] = blockReduceSum(TableStats.mHands[c]);
-	}
-
-	// If we're the first thread of each block, amalgamate
-	if (threadIdx.x == 0) {
-		ts[blockIdx.x].mWinners = TableStats.mWinners;
-		ts[blockIdx.x].mHandsPlayed = TableStats.mHandsPlayed;
-
-		for (int c = 0; c < NUM_PLAYERS; c++)
 		{
-			ts[blockIdx.x].mWinnerCount[c] = TableStats.mWinnerCount[c];
+			// Lock the mutex and wait for the kill signal with timeout
+			std::unique_lock<std::mutex> lock(gMutex);
+			if (gCondition.wait_for(lock, std::chrono::milliseconds(1), [] { return gKillThreads.load(); }))
+				break; // Exit loop if gKillThreads is true
 		}
-		for (int c = 0; c < NUM_HANDS; c++)
+
+		for (int i = 0; i < workPerInterval; ++i)
 		{
-			ts[blockIdx.x].mHands[c] = TableStats.mHands[c];
+			t.deal();
+			t.flop();
+			t.turn();
+			t.river();
+			t.evaluate();
 		}
 	}
+
+	return 0;
 }
 
-// Function to parse command-line arguments
-int ParseTarget(int argc, char* argv[]) {
+int ParseTarget(int argc, _TCHAR* argv[]) {
 	int target = -1;
 	for (int i = 1; i < argc; i++) {
-		if (std::string(argv[i]) == "-target" && i + 1 < argc) {
-			target = std::stoi(argv[i + 1]);
+		if (_tcscmp(argv[i], _T("-target")) == 0 && i + 1 < argc) {
+			target = _tstoi(argv[i + 1]);
 			break;
 		}
 	}
 	return target;
 }
 
-int main(int argc, char* argv[]) {
+int ParseConcurrencyFactor(int argc, _TCHAR* argv[]) {
+	int concurrencyFactor = 4;  // Default if no concurrency factor is provided
+	for (int i = 1; i < argc; i++) {
+		if (_tcscmp(argv[i], _T("-concurrencyFactor")) == 0 && i + 1 < argc) {
+			concurrencyFactor = _tstoi(argv[i + 1]);
+			break;
+		}
+	}
+	return concurrencyFactor;
+}
 
-	/*cudaError_t kernelError = cudaProfilerStart();
-	if (kernelError != cudaSuccess)
-	{
-		printf("Profiler start failed: %s\n", cudaGetErrorString(kernelError));
-	}*/
+int _tmain(int argc, _TCHAR* argv[]) {
+	srand(static_cast<unsigned int>(time(nullptr)));
 
-	// Define CUDA events to capture start and stop times for each phase
-	cudaEvent_t start, memAllocStop, kernelLaunchStop, resultsCalculated, kernelCompleteStop, memDeallocStop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&memAllocStop);
-	cudaEventCreate(&kernelLaunchStop);
-	cudaEventCreate(&kernelCompleteStop);
-	cudaEventCreate(&resultsCalculated);
-	cudaEventCreate(&memDeallocStop);
-
-	// Start overall timer
-	cudaEventRecord(start, 0);
-
-	int recommendedBlockSize;      // The launch configurator returned block size 
-	int recommendedGridSize;    // The minimum grid size needed to achieve the maximum occupancy for a full device launch 
-
-	cudaOccupancyMaxPotentialBlockSize(&recommendedGridSize, &recommendedBlockSize, RunGames, 0, 0);
-	printf("Recommended CUDA kernel \"gridsize\" is %d and \"blocksize\" is %d.\n\n", recommendedGridSize, recommendedBlockSize);
-
-	gGridSize = recommendedGridSize;
-	gBlockSize = recommendedBlockSize;
-
+	unsigned int totalThreads = 16;
+	unsigned int concurrencyFactor = ParseConcurrencyFactor(argc, argv);
+	totalThreads = std::thread::hardware_concurrency() * concurrencyFactor;
+	
+	unsigned int totalPlayers = 9;
+	
+	// Parse args
 	int targetGames = ParseTarget(argc, argv);
-	int rounds = 1;
 
-	if (targetGames > 0) {
-		int totalGamesPerRound = gGridSize * gBlockSize;
-		rounds = (targetGames / totalGamesPerRound) + 1;
-		printf("Targeting %d games, calculated rounds: %d\n\n", targetGames, rounds);
-		gGamesPerKernel = rounds;
-	}
-	else {
-		printf("No target specified, running default simulation of 1000 rounds per kernel.\n\n");
+	unsigned long gamesPlayed = 0;
+	bool bTimerMode = false;
+
+	if (targetGames == -1) {
+		std::cout << "No target games specified, running for 10 seconds" << std::endl;
+		bTimerMode = true;
 	}
 
-	TableStats* d_ts;
-	TableStats* h_ts;
+	std::vector<Table*> t(totalThreads);
+	std::vector<HANDLE> threadHandles(totalThreads);
 
-	int TableStatMemorySize = gGridSize * sizeof(TableStats);
+	std::cout << "Starting simulation with " << totalThreads << " threads and " << totalPlayers << " players." << std::endl;
 
-	h_ts = (TableStats*)malloc(TableStatMemorySize); // Host allocation
-	cudaMalloc((void**)&d_ts, TableStatMemorySize);  // Device allocation
-	cudaMemset(d_ts, 0, TableStatMemorySize);        // Initialize device memory
-
-	int totalThreads = gGridSize * gBlockSize;
-
-	cudaError_t kernelError = cudaGetLastError();
-	if (kernelError != cudaSuccess)
-	{
-		printf("Kernel allocation or copy failed: %s\n", cudaGetErrorString(kernelError));
-		std::cout << "Press Enter to continue...";
-		std::cin.get();
-		return kernelError;
+	for (unsigned int i = 0; i < totalThreads; i++) {
+		t[i] = new Table(totalPlayers, 500, 5);
+		threadHandles[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)SimWorker, t[i], 0, 0);
 	}
 
-	int Seed = (int)time(NULL);
-	bool bCudaError = false;
+	InitTimer();
+	auto start = std::chrono::high_resolution_clock::now();
+	auto statsUpdate = start;
+	double timer = GetTime();
+	double startTimer = GetTime();
 
-	cudaEventRecord(memAllocStop, 0);
+	while (gamesPlayed < targetGames || (targetGames == -1 && !bTimerMode)) {
+		double elapsedTime = GetTime() - timer;
+		double totalElapsedTime = GetTime() - startTimer;
+		if (elapsedTime > 1.0) {
+			system("CLS");
 
-	printf("About to run CUDA poker simulation of %d blocks, %d threads per block for a total of %d threads each running %d games. Total games: %d. \n", gGridSize, gBlockSize, gGridSize * gBlockSize, gGamesPerKernel, gGridSize * gBlockSize * gGamesPerKernel);
-
-	RunGames<<<gGridSize, gBlockSize>>>(d_ts, Seed, gGamesPerKernel);
-
-	kernelError = cudaGetLastError();
-	if (kernelError != cudaSuccess)
-	{
-		printf("Kernel execution failed: %s\n", cudaGetErrorString(kernelError));
-		std::cout << "Press Enter to continue...";
-		std::cin.get();
-		bCudaError = true;
-		return kernelError;
-	}
-	cudaEventRecord(kernelLaunchStop, 0);
-
-	// Synchronize to catch any runtime errors
-	kernelError = cudaDeviceSynchronize();
-	if (kernelError != cudaSuccess && bCudaError != true)
-	{
-		printf("Cuda device sync failed: %s\n", cudaGetErrorString(kernelError));
-		std::cout << "Press Enter to continue...";
-		std::cin.get();
-		bCudaError = true;
-		return kernelError;
-	}
-	cudaEventRecord(kernelCompleteStop, 0);
-
-	// Copy results back from device to host
-	cudaMemcpy(h_ts, d_ts, TableStatMemorySize, cudaMemcpyDeviceToHost);
-	kernelError = cudaGetLastError();
-	if (kernelError != cudaSuccess)
-	{
-		printf("cuda memcpy failed: %s\n", cudaGetErrorString(kernelError));
-		std::cout << "Press Enter to continue...";
-		std::cin.get();
-		bCudaError = true;
-		return kernelError;
-	}
-
-	printf("\n**** RESULTS: ****\n\n");
-
-	if (bCudaError != true) {
-		// Perform reduction of results back from GPU on the CPU
-		for (int i = 0; i < gGridSize; i++) {
-			gWinners += h_ts[i].mWinners;
-			gHandsPlayed += h_ts[i].mHandsPlayed;
-
-			for (unsigned int c = 0; c < NUM_PLAYERS; c++) {
-				gWinnerCount[c] += h_ts[i].mWinnerCount[c];
+			for (unsigned int i = 0; i < totalThreads; i++) {
+				t[i]->UpdateGlobalStats();
 			}
-			for (unsigned int c = 0; c < NUM_HANDS; c++) {
-				gHands[c] += h_ts[i].mHands[c];
+
+			if (targetGames != -1) {
+				std::cout << "Running simulation with " << totalThreads << " threads and " << totalPlayers << " players. Target: " << targetGames << " games.Elapsed time (seconds): " << totalElapsedTime << std::endl;
 			}
+			else {
+				std::cout << "Running simulation with " << totalThreads << " threads and " << totalPlayers << " players. Elapsed time (seconds): " << totalElapsedTime << std::endl;
+			}
+
+			std::cout << "Games per second: " << gamesPlayed / totalElapsedTime << "\n";
+			std::cout << "\n**** RESULTS ****\n\n";
+
+
+			Table::printStats(totalPlayers);
+			statsUpdate = std::chrono::high_resolution_clock::now();
+			timer = GetTime();
+
+			gamesPlayed += gGameCounter;
+			InterlockedExchangeSubtract(&gGameCounter, gGameCounter);
 		}
-
-		// Print results
-		printf("\nTotal Winners %d", gWinners);
-		printf("\nTotal Hands Played is %d\n", gHandsPlayed);
-		for (unsigned int c = 0; c < NUM_PLAYERS; c++)
-			printf("\nPlayer %d has won %d times (%.2f percent)", c + 1, gWinnerCount[c], ((float)gWinnerCount[c] / (float)gWinners) * 100.f);
-
-		printf("\n\n");
-
-		float total = 0;
-		for (int c = 0; c < NUM_HANDS; c++) {
-			const float percentage = ((float)gHands[c] / (float)gHandsPlayed) * 100.f;
-			printf("%15s: %8.4f hit %d times\n", pHands[c], percentage, gHands[c]);
-			total += percentage;
+		if (targetGames == -1 && totalElapsedTime > 10.0) {
+			printf("\nStopping after 10 seconds as no target was provided\n");
+			break;
 		}
-
-		printf("\n%.2f percent | %d hands played | %d games played\n", total, gHandsPlayed, gHandsPlayed / NUM_PLAYERS);
+		Sleep(100);
 	}
-	cudaEventRecord(resultsCalculated, 0);
-
-	// Free allocated memory on host and device
-	free(h_ts);
-	cudaFree(d_ts);
-
-	cudaEventRecord(memDeallocStop, 0);
-
-	float memAllocTime, kernelLaunchTime, kernelExecTime, resultsExecTime, memDeallocTime, totalTime;
-	cudaEventElapsedTime(&memAllocTime, start, memAllocStop);
-	cudaEventElapsedTime(&kernelLaunchTime, memAllocStop, kernelLaunchStop);
-	cudaEventElapsedTime(&kernelExecTime, kernelLaunchStop, kernelCompleteStop);
-	cudaEventElapsedTime(&resultsExecTime, kernelCompleteStop, resultsCalculated);
-	cudaEventElapsedTime(&memDeallocTime, resultsCalculated, memDeallocStop);
-	cudaEventElapsedTime(&totalTime, start, resultsCalculated);
-
-	// Display timings in milliseconds
-	std::cout << "\n **** EXECUTION TIMINGS: **** \n" << std::endl;
-	std::cout << "Memory allocation time: " << memAllocTime << " ms" << std::endl;
-	std::cout << "Kernel launch time: " << kernelLaunchTime << " ms" << std::endl;
-	std::cout << "Kernel execution time: " << kernelExecTime << " ms" << std::endl;
-	std::cout << "CPU results calculations: " << resultsExecTime << " ms" << std::endl;
-	std::cout << "Memory deallocation time: " << memDeallocTime << " ms" << std::endl;
-	std::cout << "TOTAL TIME: " << totalTime << " ms" << std::endl;
-	float timePerGame = totalTime / (gGridSize * gBlockSize * gGamesPerKernel);
-	std::cout << "\nTime per game: " << timePerGame << " ms" << std::endl;
 
 
-	// Clean up
-	cudaEventDestroy(start);
-	cudaEventDestroy(memAllocStop);
-	cudaEventDestroy(kernelLaunchStop);
-	cudaEventDestroy(kernelCompleteStop);
-	cudaEventDestroy(memDeallocStop);
+	auto end = std::chrono::high_resolution_clock::now();
 
-	cudaDeviceReset();
+	// Signal threads to terminate
+	gKillThreads = true;
+	gCondition.notify_all();
 
-	// Calculate expected values
-	int totalGames = totalThreads * gGamesPerKernel;
-	int expectedHandsPlayed = totalGames * NUM_PLAYERS;
 
-	// Calculate sums for verification
+	for (unsigned int i = 0; i < totalThreads; i++) {
+		WaitForSingleObject(threadHandles[i], INFINITE);
+	}
+
+
+	for (unsigned int i = 0; i < totalThreads; i++) {
+		delete t[i];
+	}
+
+	printf("\nSimulation complete.\n");
+
+	// Timing output
+	auto durationTotal = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+	printf("\n**** EXECUTION TIMINGS: **** \n\n");
+	printf("Total execution time: %lld ms\n", durationTotal);
+	float timePerGame = static_cast<float>(durationTotal) / gamesPlayed;
+	std::cout << "Time per game: " << timePerGame << " ms" << std::endl;
+	// std::cout << "Games per second: " << timePerGame * 1000 << std::endl;
+	
+	std::cout << "Games per second: " << (gamesPlayed / static_cast<float>(durationTotal)) * 1000 << std::endl;
+
+	// Sanity checks
+	int expectedHandsPlayed = gamesPlayed * totalPlayers;
 	int sumPlayerWins = 0;
-	for (unsigned int c = 0; c < NUM_PLAYERS; c++) {
-		sumPlayerWins += gWinnerCount[c];
-	}
-
 	int sumHandCounts = 0;
-	for (int c = 0; c < NUM_HANDS; c++) {
-		sumHandCounts += gHands[c];
-	}
 
-	// Perform sanity checks and print results
+	for (unsigned int i = 0; i < MAX_NUM_PLAYERS; i++) sumPlayerWins += gWinnerCount[i];
+	for (int i = 0; i < NUM_HANDS; i++) sumHandCounts += gHands[i];
+
 	printf("\n**** SANITY CHECKS: ****\n\n");
 	printf("Expected total hands played: %d\n", expectedHandsPlayed);
 	printf("Actual total hands played:   %d\n", gHandsPlayed);
 
-	printf("\nExpected total games: %d\n", totalGames);
+	printf("\nExpected total games: %d\n", gamesPlayed);
 	printf("Actual total winners: %d\n", gWinners);
 
 	printf("\nSum of per-player wins: %d\n", sumPlayerWins);
@@ -1182,7 +1206,7 @@ int main(int argc, char* argv[]) {
 	printf("\nSum of hand type counts: %d\n", sumHandCounts);
 	printf("Total hands played:      %d\n", gHandsPlayed);
 
-	// Verify if the actual values match the expected values
+	// Verification messages
 	if (gHandsPlayed == expectedHandsPlayed) {
 		printf("\nHands played matches expected value.\n");
 	}
@@ -1204,11 +1228,8 @@ int main(int argc, char* argv[]) {
 		printf("Sum of hand type counts does NOT match total hands played!\n");
 	}
 
-	// cudaProfilerStop();
 	std::cout << "Press Enter to continue...";
 	std::cin.get();
 
-	// Success!
 	return 0;
 }
-

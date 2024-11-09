@@ -1,0 +1,40 @@
+Recommended CUDA kernel "gridsize" is 56 and "blocksize" is 768.
+
+Adjusting games per kernel to 232 to meet target of 10000000 games.
+Launching kernel with grid size 56, block size 768, games per kernel 232
+
+Total Games Played: 9977856
+Total Hands Played: 89800704
+Total Winners: 12947319
+Player 1 won 1437666 times (11.10%)
+Player 2 won 1440897 times (11.13%)
+Player 3 won 1438172 times (11.11%)
+Player 4 won 1437706 times (11.10%)
+Player 5 won 1438671 times (11.11%)
+Player 6 won 1438224 times (11.11%)
+Player 7 won 1438109 times (11.11%)
+Player 8 won 1439557 times (11.12%)
+Player 9 won 1438317 times (11.11%)
+
+Hand Type Statistics:
+       HighCard:  17.4083% (15632751 times)
+        OnePair:  43.8134% (39344781 times)
+        TwoPair:  23.4996% (21102810 times)
+   ThreeOfAKind:   4.8754% (4378130 times)
+       Straight:   4.6216% (4150202 times)
+          Flush:   2.8535% (2562459 times)
+      FullHouse:   2.5549% (2294277 times)
+    FourOfAKind:   0.1682% (151018 times)
+  StraightFlush:   0.2052% (184276 times)
+
+ **** EXECUTION TIMINGS: **** 
+
+Memory allocation time: 1.86851 ms
+Kernel launch time: 80.94 ms
+Kernel execution time: 0.03072 ms
+CPU results calculations: 0.114176 ms
+Memory deallocation time: 0 ms
+TOTAL TIME: 82.9534 ms
+
+Time per game: 1.66275e-05 ms
+Press Enter to continue...
