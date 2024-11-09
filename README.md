@@ -10,9 +10,16 @@ In 2015, this resulted in a simulator that executed 524,288 poker games per seco
 
 By 2017, on a 1060GTX GPU ($400 AUD), it executed over 1,000,000 poker games per second compared to 429,093 on an i7 8600K CPU ($400 AUD device).
 
-In 2024, I revisited the project with newer GPUs. I updated the code and ran it on updated hardware. The results are in the table below.
+In 2024, I revisited the project. I updated the code and ran it on updated hardware. The results are in the table below.
 
-An interesting development in coding is, of course, Large Language Models (LLMs). I provided ChatGPT with the source code for both the CPU and GPU variants for optimization. After some tweaking, it produced a much more performant simulation! Hilariously, despite improving the simulation after a few tries, it forgot about all the timing and sanity-checking features I'd implemented and for some bizarre reason, it couldn't produce a working program with them— it would break other features when trying to add these basic functionalities. Still, I am impressed by it's optimization. Turns out, there was a lot of work that could have been done on the simulation implementation.
+
+### LLMs
+
+An interesting development in coding is, of course, Large Language Models (LLMs). When I revisited the project, I provided ChatGPT with the source code for both the CPU and GPU variants for optimization. After some tweaking, it produced a much more performant simulation!
+
+Hilariously, despite improving the simulation after a few tries, it forgot about all the timing and sanity-checking features I'd implemented and for some bizarre reason, it couldn't produce a working program with them— it would break other features when trying to add these basic functionalities. Still, I am impressed by it's optimization. Turns out, there was a lot of work that could have been done on the simulation implementation.
+
+LLMs are no substitite for a human developer though. I was having trouble with this project running with newer versions of CUDA due to a memory bug. No LLM had any idea about the issue. In the end, the root cause was nVidia changing the behaviour of their CUDA random number library.
 
 ### Benchmark Results
 
@@ -39,10 +46,10 @@ An interesting development in coding is, of course, Large Language Models (LLMs)
 | 8600K CPU      | 10,000,000 Games CPU         | 429,093                | 23,216.7        |
 
 
-- '2015 Era CPU to GPU Uplift': '13.04%'
-- '14700K CPU to GPT CPU Uplift': '394.18%'
-- '8600K CPU to GPT CPU Uplift': '215.01%'
-- '3060 CUDA to GPT CUDA Uplift': '1826.28%'
-- '4080 CUDA to GPT CUDA Uplift': '1511.89%'
-- '9950X CPU to 3060 CUDA Uplift': '220.10%'
-- '9950X CPU to 4080 CUDA Uplift': '811.55%'
+- 2015 Era CPU to GPU Uplift: '13.04%'
+- 14700K CPU to GPT CPU Uplift: '394.18%'
+- 8600K CPU to GPT CPU Uplift: '215.01%'
+- 3060 CUDA to GPT CUDA Uplift: '1826.28%'
+- 4080 CUDA to GPT CUDA Uplift: '1511.89%'
+- 9950X CPU to 3060 CUDA Uplift: '220.10%'
+- 9950X CPU to 4080 CUDA Uplift: '811.55%'
