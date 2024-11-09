@@ -1,0 +1,26 @@
+Player 0 has won 1836775 times (11.11 percent)
+Player 1 has won 1836375 times (11.10 percent)
+Player 2 has won 1837500 times (11.11 percent)
+Player 3 has won 1838244 times (11.12 percent)
+Player 4 has won 1836818 times (11.11 percent)
+Player 5 has won 1840081 times (11.13 percent)
+Player 6 has won 1838103 times (11.11 percent)
+Player 7 has won 1835702 times (11.10 percent)
+Player 8 has won 1838805 times (11.12 percent)
+
+       HighCard:  17.4053% hit 21161507 times
+        OnePair:  43.8216% hit 53278772 times
+        TwoPair:  23.5028% hit 28574995 times
+   ThreeOfAKind:   4.8720% hit 5923478 times
+       Straight:   4.6186% hit 5615364 times
+          Flush:   2.8477% hit 3462295 times
+      FullHouse:   2.5594% hit 3111751 times
+    FourOfAKind:   0.1677% hit 203836 times
+  StraightFlush:   0.2048% hit 249002 times
+
+100.00% total | 121581000 hands played
+
+Simulation complete.
+Total execution time: 10017 ms
+Games per second: 1348607.367475
+Press Enter to continue...

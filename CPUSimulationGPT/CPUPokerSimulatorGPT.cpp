@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <memory>  // For std::unique_ptr
+#include <iomanip>
 
 using namespace std;
 
@@ -315,6 +316,8 @@ void simWorker(Table* table, std::atomic<bool>& stopFlag, std::vector<unsigned i
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << std::fixed << std::setprecision(10);
+
     int numPlayers = 9;
     int numThreads = std::thread::hardware_concurrency();
 
@@ -360,6 +363,9 @@ int main(int argc, char* argv[]) {
     printf("\nSimulation complete.\n");
     printf("Total execution time: %lld ms\n", duration);
     printf("Games per second: %f\n", gamesPlayed / (duration / 1000.0));
+
+    std::cout << "Press Enter to continue...";
+    std::cin.get();
 
     return 0;
 }

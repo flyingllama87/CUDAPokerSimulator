@@ -1,0 +1,27 @@
+Player 1 has won 62113 the times (10.97 percent)
+Player 2 has won 62378 the times (11.02 percent)
+Player 3 has won 62527 the times (11.04 percent)
+Player 4 has won 62759 the times (11.08 percent)
+Player 5 has won 62887 the times (11.11 percent)
+Player 6 has won 63953 the times (11.14 percent)
+Player 7 has won 63294 the times (11.18 percent)
+Player 8 has won 63799 the times (11.27 percent)
+Player 9 has won 63416 the times (11.20 percent)
+
+HighCard: 32.8131 hit 1548314 times
+OnePair: 43.5698 hit 2055879 times
+TwoPair: 13.2615 hit 625755 times
+ThreeOfAKind: 3.4911 hit 164738 times
+Straight: 2.0458 hit 96496 times
+Flush: 3.2331 hit 152558 times
+FullHouse: 1.3072 hit 61683 times
+FourOfAKind: 0.2424 hit 11437 times
+StraightFlush: 0.0369 hit 1740 times
+
+100.00 percent | 4718592 hands played | 524288 games played
+Press any key to continue...
+
+About to run CUDA poker simulation of 16 blocks, 256 threads per block for a total of 4096 threads each running 127 games.
+Executed poker simulation. About to perform sum of results and print.
+Total Winners 566226
+Total Hands Played is 4718592

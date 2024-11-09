@@ -7,8 +7,10 @@
 #include <time.h>
 #include "windows.h"
 #include <cuda_runtime.h>
-#include <curand.h>
+// #include <curand.h>
 #include <curand_kernel.h>
+#include <iomanip>
+
 
 using namespace std;
 
@@ -978,6 +980,7 @@ int ParseTarget(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+	std::cout << std::fixed << std::setprecision(10); // Adjust precision as needed
 
 	/*cudaError_t kernelError = cudaProfilerStart();
 	if (kernelError != cudaSuccess)
@@ -1142,7 +1145,9 @@ int main(int argc, char* argv[]) {
 	std::cout << "TOTAL TIME: " << totalTime << " ms" << std::endl;
 	float timePerGame = totalTime / (gGridSize * gBlockSize * gGamesPerKernel);
 	std::cout << "\nTime per game: " << timePerGame << " ms" << std::endl;
-
+	int totalGames = totalThreads * gGamesPerKernel;
+	float GamesPerSecond = totalGames / (totalTime / 1000.0f);
+	std::cout << "Games per second: " << GamesPerSecond << std::endl;
 
 	// Clean up
 	cudaEventDestroy(start);
@@ -1154,7 +1159,6 @@ int main(int argc, char* argv[]) {
 	cudaDeviceReset();
 
 	// Calculate expected values
-	int totalGames = totalThreads * gGamesPerKernel;
 	int expectedHandsPlayed = totalGames * NUM_PLAYERS;
 
 	// Calculate sums for verification

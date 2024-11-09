@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{EB8902F8-EBD9-4BC6-BA4F-AF8CB5CD4098}</ProjectGuid>
     <RootNamespace>CudaPokerSimulator</RootNamespace>
+    <ProjectName>CudaPokerSimulatorGPT</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -83,7 +84,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="CUDAPokerSimulator.cu">
+    <CudaCompile Include="CUDAPokerSimulatorGPT.cu">
       <Runtime Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MTd</Runtime>
       <Runtime Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MT</Runtime>
     </CudaCompile>

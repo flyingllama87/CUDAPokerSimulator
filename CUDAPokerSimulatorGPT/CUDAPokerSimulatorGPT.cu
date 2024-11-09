@@ -6,6 +6,7 @@
 #include <time.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <iomanip>
 
 using namespace std;
 
@@ -273,6 +274,8 @@ __global__ void RunGames(TableStats* ts, int seed, int gamesPerKernel) {
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << std::fixed << std::setprecision(10); // Adjust precision as needed
+
     int gridSize = 28;
     int blockSize = 640;
     int gamesPerKernel = 1000;
@@ -376,6 +379,9 @@ int main(int argc, char* argv[]) {
     std::cout << "TOTAL TIME: " << totalTime << " ms" << std::endl;
     float timePerGame = totalTime / (gGridSize * blockSize * gamesPerKernel);
     std::cout << "\nTime per game: " << timePerGame << " ms" << std::endl;
+
+	float GamesPerSecond = totalGames / (totalTime / 1000.0f);
+	std::cout << "Games per second: " << GamesPerSecond << std::endl;
 
 
     std::cout << "Press Enter to continue...";

@@ -1,0 +1,64 @@
+Recommended CUDA kernel "gridsize" is 28 and "blocksize" is 640.
+
+Targeting 10000000 games, calculated rounds: 559
+
+About to run CUDA poker simulation of 28 blocks, 640 threads per block for a total of 17920 threads each running 559 games. Total games: 10017280. 
+
+**** RESULTS: ****
+
+
+Total Winners 11186086
+Total Hands Played is 90155520
+
+Player 1 has won 1236097 times (11.05 percent)
+Player 2 has won 1235755 times (11.05 percent)
+Player 3 has won 1237938 times (11.07 percent)
+Player 4 has won 1239682 times (11.08 percent)
+Player 5 has won 1244962 times (11.13 percent)
+Player 6 has won 1243302 times (11.11 percent)
+Player 7 has won 1247613 times (11.15 percent)
+Player 8 has won 1250678 times (11.18 percent)
+Player 9 has won 1250059 times (11.18 percent)
+
+       HighCard:  17.6584 hit 15920029 times
+        OnePair:  44.0003 hit 39668728 times
+        TwoPair:  23.5159 hit 21200900 times
+   ThreeOfAKind:   4.8332 hit 4357409 times
+       Straight:   4.1700 hit 3759518 times
+          Flush:   3.0270 hit 2728980 times
+      FullHouse:   2.5994 hit 2343487 times
+    FourOfAKind:   0.1678 hit 151265 times
+  StraightFlush:   0.0280 hit 25204 times
+
+100.00 percent | 90155520 hands played | 10017280 games played
+
+ **** EXECUTION TIMINGS: **** 
+
+Memory allocation time: 2.3572480679 ms
+Kernel launch time: 1466.3291015625 ms
+Kernel execution time: 0.0460800007 ms
+CPU results calculations: 0.1003839970 ms
+Memory deallocation time: 0.0000000000 ms
+TOTAL TIME: 1468.8327636719 ms
+
+Time per game: 0.0001466299 ms
+Games per second: 6819891.5000000000
+
+**** SANITY CHECKS: ****
+
+Expected total hands played: 90155520
+Actual total hands played:   90155520
+
+Expected total games: 10017280
+Actual total winners: 11186086
+
+Sum of per-player wins: 11186086
+Total winners:          11186086
+
+Sum of hand type counts: 90155520
+Total hands played:      90155520
+
+Hands played matches expected value.
+Sum of player wins matches total winners.
+Sum of hand type counts matches total hands played.
+Press Enter to continue...

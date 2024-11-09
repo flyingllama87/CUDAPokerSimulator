@@ -1,0 +1,64 @@
+Recommended CUDA kernel "gridsize" is 80 and "blocksize" is 640.
+
+Targeting 100000000 games, calculated rounds: 1954
+
+About to run CUDA poker simulation of 80 blocks, 640 threads per block for a total of 51200 threads each running 1954 games. Total games: 100044800. 
+
+**** RESULTS: ****
+
+
+Total Winners 111714074
+Total Hands Played is 900403200
+
+Player 1 has won 12334162 times (11.04 percent)
+Player 2 has won 12358063 times (11.06 percent)
+Player 3 has won 12372336 times (11.08 percent)
+Player 4 has won 12388943 times (11.09 percent)
+Player 5 has won 12405808 times (11.10 percent)
+Player 6 has won 12427039 times (11.12 percent)
+Player 7 has won 12450165 times (11.14 percent)
+Player 8 has won 12499984 times (11.19 percent)
+Player 9 has won 12477574 times (11.17 percent)
+
+       HighCard:  17.6553 hit 158968598 times
+        OnePair:  44.0089 hit 396257310 times
+        TwoPair:  23.5157 hit 211735996 times
+   ThreeOfAKind:   4.8330 hit 43516512 times
+       Straight:   4.1686 hit 37534184 times
+          Flush:   3.0276 hit 27260243 times
+      FullHouse:   2.5951 hit 23365916 times
+    FourOfAKind:   0.1681 hit 1513294 times
+  StraightFlush:   0.0279 hit 251147 times
+
+100.00 percent | 900403200 hands played | 100044800 games played
+
+ **** EXECUTION TIMINGS: **** 
+
+Memory allocation time: 1.1366399527 ms
+Kernel launch time: 5075.7182617188 ms
+Kernel execution time: 0.0430079997 ms
+CPU results calculations: 0.0716480017 ms
+Memory deallocation time: 0.2608639896 ms
+TOTAL TIME: 5076.9692382812 ms
+
+Time per game: 0.0000507470 ms
+Games per second: 19705616.0000000000
+
+**** SANITY CHECKS: ****
+
+Expected total hands played: 900403200
+Actual total hands played:   900403200
+
+Expected total games: 100044800
+Actual total winners: 111714074
+
+Sum of per-player wins: 111714074
+Total winners:          111714074
+
+Sum of hand type counts: 900403200
+Total hands played:      900403200
+
+Hands played matches expected value.
+Sum of player wins matches total winners.
+Sum of hand type counts matches total hands played.
+Press Enter to continue...
